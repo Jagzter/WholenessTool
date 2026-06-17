@@ -48,28 +48,6 @@
   button.primary:hover{background:var(--gold-soft)}
   button:disabled{opacity:0.35;cursor:default}
 
-  #openctl{bottom:18px;right:18px;width:230px}
-  #openctl label, #ratectl label{font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--gold);display:block;margin-bottom:9px}
-  #openctl input[type=range], #ratectl input[type=range]{width:100%;accent-color:var(--gold);cursor:pointer}
-  #openctl .read{font-size:12px;color:var(--ink-dim);margin-top:7px;line-height:1.4}
-  #openctl .read b{color:var(--gold-soft);font-weight:normal}
-  #openctl .chaininfo{font-size:11px;color:var(--ink-dim);margin-top:9px;padding-top:9px;border-top:1px solid rgba(184,151,43,0.12)}
-  #openctl .chaininfo b{color:var(--gold-soft);font-weight:normal}
-
-  #ratectl{bottom:18px;right:262px;width:230px;opacity:0.4;transition:opacity .25s}
-  #ratectl .rateread{font-size:12px;color:var(--ink-dim);margin-top:7px;line-height:1.4}
-  #ratectl .rateread b{color:var(--gold-soft);font-weight:normal}
-
-  #logpanel{bottom:18px;left:18px;width:248px;max-height:42vh;display:flex;flex-direction:column}
-  #logpanel h2{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--gold);margin-bottom:11px}
-  #logrows{overflow-y:auto;flex:1}
-  #logrows .empty{font-size:12px;color:var(--ink-dim);font-style:italic}
-  .logrow{display:grid;grid-template-columns:20px 1fr auto;gap:9px;align-items:baseline;
-    padding:7px 0;border-bottom:1px solid rgba(184,151,43,0.12);font-size:12px}
-  .logrow .ri{color:var(--gold-soft)}
-  .logrow .rl{color:var(--ink-dim);line-height:1.3}
-  .logrow .rv{color:var(--ink);white-space:nowrap}
-  .logrow .rv b{color:var(--gold-soft);font-weight:normal}
 
   #tools{top:18px;left:50%;transform:translateX(-50%);display:flex;gap:10px}
 
@@ -97,10 +75,8 @@
   @media (max-width:980px){
     #masthead{max-width:200px;padding:11px 13px}
     #masthead h1{font-size:16px}
-    #steps{display:none}
-    #logpanel{display:none}
-    #ratectl{right:18px;bottom:150px;width:170px}
-    #openctl{width:170px}
+
+
   }
 </style>
 </head>
@@ -118,40 +94,15 @@
   <button id="addnote">+ Note</button>
 </div>
 
-<div id="steps" class="panel">
-  <h2>Process</h2>
-  <div id="steplist"></div>
-</div>
-
 <div id="hint"></div>
 
 <div id="dock" class="panel">
-  <button id="back">Back</button>
-  <button id="next" class="primary">Begin</button>
-  <button id="addI" disabled>+ Next I</button>
-  <button id="reset">Reset</button>
-  <button id="snap">Capture PNG</button>
+	<button id="begin" class="primary">Begin</button>
+	<button id="undoEye" disabled>Undo Eye</button>
+	<button id="reset">Reset</button>
+	<button id="snap">Capture PNG</button>
 </div>
 
-<div id="openctl" class="panel">
-  <label>Open & include</label>
-  <input id="open" type="range" min="0" max="100" value="0">
-  <div class="read" id="openread">Awareness is <b>localized</b> — looking out from a point.</div>
-  <div class="chaininfo" id="chaininfo">Chain: <b>0</b> of 8 awarenesses placed.</div>
-</div>
-
-<div id="ratectl" class="panel">
-  <label>Felt-shift in the original feeling</label>
-  <input id="rate" type="range" min="0" max="10" value="0">
-  <div class="rateread" id="rateread"><b>0</b> / 10 — unchanged</div>
-  <button id="loground" class="primary" style="width:100%;margin-top:11px">Log this round</button>
-</div>
-
-<div id="logpanel" class="panel">
-  <h2>Session log</h2>
-  <div id="logrows"><div class="empty">No rounds logged yet.</div></div>
-  <button id="exportlog" disabled style="width:100%;margin-top:11px">Export log (.csv)</button>
-</div>
 
 <script>
 /**
@@ -176,37 +127,13 @@ const W = window;
 // The recursive chain of awareness. chain[0] is the first I (aware of the feeling);
 // chain[k] is aware of chain[k-1]. Each entry: {group, iris, beam}
 let chain = [];
-let awaitingPlacement = false;   // true when the next click drops the next I
+let awaitingPlacement = false;
+let started = false;
 
 document.getElementById('verlabel').textContent = 'v'+VERSION;
 document.getElementById('verlabel').title = 'Build '+BUILD;
 document.getElementById('buildlabel').textContent = 'build '+BUILD;
 
-
-// ---- Process steps (Wholeness Work) ----
-const STEPS = [
-  {t:"Welcome the experience", d:"Place the activated feeling in the field."},
-  {t:"Find the first I", d:"Where do you sense the 'I' aware of this? Click to place it."},
-  {t:"Recede through awareness", d:"And what is aware of THAT I? Add each one — up to eight."},
-  {t:"Open & include", d:"Let the whole chain open into all-around awareness."},
-  {t:"Re-check", d:"Return to the original feeling. Rate the shift, then log."},
-];
-let cur = -1;
-const openSlider = document.getElementById('open');
-const openRead = document.getElementById('openread');
-let roundLog = [];
-
-function buildSteps(){
-  const list = document.getElementById('steplist');
-  list.innerHTML = '';
-  STEPS.forEach((s,i)=>{
-    const el = document.createElement('div');
-    el.className = 'step'; el.dataset.i = i;
-    el.innerHTML = `<div class="n">${i+1}</div><div class="b"><div class="t">${s.t}</div><div class="d">${s.d}</div></div>`;
-    el.onclick = ()=>goStep(i);
-    list.appendChild(el);
-  });
-}
 
 function init(){
   scene = new THREE_.Scene();
@@ -275,6 +202,22 @@ function makeFigure(){
   return g;
 }
 
+function undoEye(){
+  if(chain.length === 0) return;
+
+  const last = chain.pop();
+
+  if(last.group) scene.remove(last.group);
+  if(last.beam) scene.remove(last.beam);
+
+  dragObj = null;
+  updateChainInfo();
+
+  document.getElementById('undoEye').disabled = chain.length === 0;
+
+  flash(`Removed awareness ${chain.length + 1}.`);
+}
+
 function placeCamera(){
   camera.position.x = camDist * Math.cos(camPitch) * Math.sin(camYaw);
   camera.position.y = camDist * Math.sin(camPitch) + 0.5;
@@ -319,6 +262,8 @@ function addAwareness(worldPt){
   if(depth>0){
     eye.group.position.x += 0.6; eye.group.position.y += 0.55; eye.group.position.z -= 0.4;
   }
+  
+  document.getElementById('undoEye').disabled = false;
 }
 
 function targetOf(k){
@@ -340,10 +285,7 @@ function updateGazes(){
 }
 
 function updateChainInfo(){
-  document.getElementById('chaininfo').innerHTML =
-    `Chain: <b>${chain.length}</b> of ${MAX_I} awarenesses placed.`;
-  const addBtn = document.getElementById('addI');
-  addBtn.disabled = !(cur===2 && chain.length>=1 && chain.length<MAX_I);
+  document.getElementById('undoEye').disabled = chain.length === 0;
 }
 
 let t0 = performance.now();
@@ -354,11 +296,10 @@ function animate(){
   if(partMesh.visible){ partMesh.rotation.y += 0.0015;
     partMesh.scale.setScalar(1 + Math.sin(t*1.5)*0.03); }
 
-  const open = parseFloat(openSlider.value)/100;
-  const r = 0.6 + open*7.2;
-  fieldShell.scale.setScalar(r);
-  fieldShell.material.opacity = open*0.16;
-  fieldShell.rotation.y += 0.0015;
+const open = 0;
+fieldShell.scale.setScalar(0.6);
+fieldShell.material.opacity = 0;
+fieldShell.rotation.y += 0.0015;
 
   // the seated figure (billboard) sits within the activated feeling
   if(figure){
@@ -386,64 +327,6 @@ function animate(){
   renderer.render(scene, camera);
 }
 
-// ---- step orchestration ----
-function goStep(i){
-  cur = i;
-  document.querySelectorAll('.step').forEach((el,idx)=>{
-    el.classList.toggle('active', idx===i);
-    el.classList.toggle('done', idx<i);
-  });
-  document.getElementById('next').textContent = (i>=STEPS.length-1)?'Done':'Next';
-  document.getElementById('back').disabled = i<=0;
-
-  partMesh.visible = i>=0;
-
-  const openOn = i>=3;
-  openSlider.disabled = !openOn;
-  document.getElementById('openctl').style.opacity = 1; // chain info always useful
-
-  const rateOn = i>=4;
-  document.getElementById('ratectl').style.opacity = rateOn?1:0.4;
-  document.getElementById('rate').disabled = !rateOn;
-  document.getElementById('loground').disabled = !rateOn;
-
-  awaitingPlacement = (i===1 && chain.length===0) || (i===2);
-
-  if(i===0){ flash("Drag the feeling to where the client senses it in their space."); }
-  else if(i===1){
-    flash("Click in the field where the client senses the first I.");
-  }
-  else if(i===2){
-    flash("Ask: what is aware of that I? Click to place the next — or press + Next I.");
-  }
-  else if(i===3){ openSlider.value=0; syncRead(); flash("Let the whole chain open into all-around awareness."); }
-  else if(i===4){ flash("Return to the feeling. Rate the felt-shift, then log the round."); }
-
-  updateChainInfo();
-}
-function next(){ if(cur<STEPS.length-1) goStep(cur+1); }
-function back(){ if(cur>0) goStep(cur-1); }
-
-function syncRead(){
-  const v = parseFloat(openSlider.value)/100;
-  let msg;
-  if(v<0.05) msg="Awareness is <b>localized</b> — looking out from a point.";
-  else if(v<0.45) msg="Awareness is <b>beginning to open</b> — the edges soften.";
-  else if(v<0.85) msg="Awareness <b>opens all around</b>, including the chain.";
-  else msg="Awareness is <b>spacious & all-inclusive</b> — no separate looker.";
-  openRead.innerHTML = msg;
-}
-
-function syncRate(){
-  const v = parseInt(document.getElementById('rate').value,10);
-  let lbl;
-  if(v===0) lbl="unchanged";
-  else if(v<=3) lbl="slightly softer";
-  else if(v<=6) lbl="noticeably lighter";
-  else if(v<=9) lbl="much lighter / spacious";
-  else lbl="fully resolved";
-  document.getElementById('rateread').innerHTML = `<b>${v}</b> / 10 — ${lbl}`;
-}
 
 let hintT;
 function flash(msg){
@@ -453,21 +336,26 @@ function flash(msg){
 }
 
 function reset(){
-  openSlider.value = 0; syncRead();
-  document.getElementById('rate').value = 0; syncRate();
-  chain.forEach(c=>{ scene.remove(c.group); scene.remove(c.beam); });
+  started = false;
+  awaitingPlacement = false;
+
+  chain.forEach(c=>{
+    scene.remove(c.group);
+    scene.remove(c.beam);
+  });
+
   chain = [];
+  dragObj = null;
+
   partMesh.position.set(0,-0.4,0.2);
-  goStep(-1);
-  document.querySelectorAll('.step').forEach(el=>el.classList.remove('active','done'));
-  document.getElementById('next').textContent='Begin';
-  document.getElementById('back').disabled=true;
-  openSlider.disabled=true;
-  document.getElementById('ratectl').style.opacity=0.4;
-  document.getElementById('rate').disabled=true;
-  partMesh.visible=false;
+  partMesh.visible = false;
+
+  document.getElementById('begin').disabled = false;
+  document.getElementById('undoEye').disabled = true;
+
   updateChainInfo();
-  flash("Ready for a new round. The session log is preserved.");
+
+  flash("Ready for a new round.");
 }
 
 // ---- pointer: orbit, drag feeling/eyes, or drop the next I ----
@@ -483,6 +371,15 @@ function bindEvents(){
       new THREE_.Vector3(0,1,0));
     return pl;
   }
+  function beginSession(){
+  started = true;
+  partMesh.visible = true;
+  awaitingPlacement = true;
+
+  document.getElementById('begin').disabled = true;
+
+  flash("Begin. The image is now on the canvas. Click in the field to place awareness eyes.");
+}
   function pickDraggable(e){
     const p = ndc(e); ray.setFromCamera(p, camera);
     const targets=[];
@@ -504,16 +401,15 @@ function bindEvents(){
     if(h){
       dragObj=h;
       plane.setFromNormalAndCoplanarPoint(camera.getWorldDirection(new THREE_.Vector3()).negate(), dragObj.position);
-    } else if(awaitingPlacement && chain.length<MAX_I){
+    } else if(started && chain.length<MAX_I){
       const p=ndc(e); ray.setFromCamera(p,camera);
       const pt=new THREE_.Vector3();
       if(ray.ray.intersectPlane(dropPlane(), pt)){
         addAwareness(pt);
-        if(cur===1){ goStep(2); }   // first I placed -> move to recede step
         const last = chain[chain.length-1].group;
         dragObj=last;
         plane.setFromNormalAndCoplanarPoint(camera.getWorldDirection(new THREE_.Vector3()).negate(), dragObj.position);
-        flash(`Awareness ${chain.length} placed. Add another, or press Next to open & include.`);
+        flash(`Awareness ${chain.length} placed. Click again to add another eye, or use Undo Eye.`);
       }
     } else dragObj=null;
   });
@@ -535,21 +431,10 @@ function bindEvents(){
   c.addEventListener('wheel', e=>{ e.preventDefault();
     camDist=Math.max(4,Math.min(18,camDist+e.deltaY*0.01)); placeCamera(); }, {passive:false});
 
-  openSlider.addEventListener('input', syncRead);
-  document.getElementById('rate').addEventListener('input', syncRate);
-  document.getElementById('loground').onclick = logRound;
-  document.getElementById('exportlog').onclick = exportLog;
-  document.getElementById('addI').onclick = ()=>{
-    if(chain.length>=1 && chain.length<MAX_I){
-      const prev = chain[chain.length-1].group.position.clone();
-      prev.x+=0.7; prev.y+=0.6; prev.z-=0.5;
-      addAwareness(prev);
-      flash(`Awareness ${chain.length} added.`);
-    }
-  };
-  document.getElementById('addnote').onclick = ()=>createNote();
-  document.getElementById('next').onclick = ()=>{ if(cur<0) goStep(0); else next(); };
-  document.getElementById('back').onclick = back;
+ 
+  document.getElementById('begin').onclick = beginSession; 
+  document.getElementById('undoEye').onclick = undoEye;
+   document.getElementById('addnote').onclick = ()=>createNote();
   document.getElementById('reset').onclick = reset;
   document.getElementById('snap').onclick = capture;
   W.addEventListener('resize', ()=>{
@@ -568,7 +453,7 @@ function createNote(x, y, text){
   el.style.top  = (y ?? (W.innerHeight/2 - 60 + (Math.random()*40-20)))+'px';
   el.style.zIndex = ++noteZ;
   el.innerHTML = `
-    <div class="nh"><span class="grip">NOTE · drag</span><span class="nx" title="Remove">&times;</span></div>
+    <div class="nh"><span class="grip"></span><span class="nx" title="Remove">&times;</span></div>
     <textarea maxlength="250" placeholder="Up to 250 characters. Alt+Enter for a line break."></textarea>
     <div class="cc">0 / 250</div>`;
   stage.appendChild(el);
@@ -617,57 +502,6 @@ function createNote(x, y, text){
 
 // ---- felt-shift rating + session log ----
 function p3(v){ return Math.round(v*100)/100; }
-function logRound(){
-  const rate = parseInt(document.getElementById('rate').value,10);
-  const eyes = chain.map(c=>({x:p3(c.group.position.x), y:p3(c.group.position.y), z:p3(c.group.position.z)}));
-  const row = {
-    n: roundLog.length+1,
-    time: new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}),
-    feeling: {x:p3(partMesh.position.x), y:p3(partMesh.position.y), z:p3(partMesh.position.z)},
-    chainLen: chain.length,
-    eyes,
-    open: Math.round(parseFloat(openSlider.value)),
-    shift: rate,
-  };
-  roundLog.push(row);
-  renderLog();
-  document.getElementById('exportlog').disabled = false;
-  flash(`Round ${row.n} logged — chain of ${row.chainLen}, felt-shift ${rate}/10.`);
-}
-
-function renderLog(){
-  const box = document.getElementById('logrows');
-  if(!roundLog.length){ box.innerHTML='<div class="empty">No rounds logged yet.</div>'; return; }
-  box.innerHTML = roundLog.map(r=>`
-    <div class="logrow">
-      <div class="ri">${r.n}</div>
-      <div class="rl">${r.time} · chain ${r.chainLen}</div>
-      <div class="rv">shift <b>${r.shift}</b>/10</div>
-    </div>`).join('');
-  box.scrollTop = box.scrollHeight;
-}
-
-function exportLog(){
-  if(!roundLog.length) return;
-  const maxChain = Math.max(...roundLog.map(r=>r.chainLen), 0);
-  const eyeCols=[];
-  for(let k=0;k<maxChain;k++){ eyeCols.push(`I${k+1}_x`,`I${k+1}_y`,`I${k+1}_z`); }
-  const head = ['version','build','round','time','feeling_x','feeling_y','feeling_z','chain_len','open_pct','felt_shift_0_10', ...eyeCols];
-  const rows = roundLog.map(r=>{
-    const base=[VERSION,BUILD,r.n,r.time,r.feeling.x,r.feeling.y,r.feeling.z,r.chainLen,r.open,r.shift];
-    for(let k=0;k<maxChain;k++){
-      if(r.eyes[k]) base.push(r.eyes[k].x, r.eyes[k].y, r.eyes[k].z);
-      else base.push('','','');
-    }
-    return base;
-  });
-  const csv=[head,...rows].map(a=>a.join(',')).join('\n');
-  const blob=new Blob([csv],{type:'text/csv'});
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob);
-  a.download=`wholeness-field-v${VERSION}-session-${Date.now()}.csv`;
-  a.click();
-}
 
 // ---- PNG capture with legend + version ----
 function capture(){
@@ -711,42 +545,32 @@ function capture(){
     lines.forEach((ln,i)=> g.fillText(ln, nx+9, ny+30+i*16));
   });
 
-  const pad=18; const lh=22; const boxH=156; let y=out.height/pr-boxH+6;
-  g.fillStyle='rgba(10,19,38,0.82)';
-  g.fillRect(pad-8, y-26, 360, boxH);
-  g.strokeStyle='rgba(184,151,43,0.4)'; g.strokeRect(pad-8,y-26,360,boxH);
-  g.fillStyle='#B8972B'; g.font='11px Georgia';
-  g.fillText(`THERAPY 3.0 · WHOLENESS FIELD · v${VERSION} · ${BUILD}`, pad, y-8);
-  const legend=[
-    ['#EDEFF6','Awareness loci — the recursive I-chain'],
-    ['#D85A30','The activated feeling / part'],
-    ['#B8972B','Gaze — each I looks at the prior'],
-    ['#D4B454','Including awareness (the open field)'],
-  ];
-  g.font='13px Georgia';
-  legend.forEach((it,i)=>{
-    const ly=y+i*lh+10;
-    g.fillStyle=it[0]; g.beginPath(); g.arc(pad+6,ly-4,6,0,7); g.fill();
-    g.fillStyle='#E8ECF4'; g.fillText(it[1], pad+20, ly);
-  });
-  const step = cur>=0?`Step ${cur+1}: ${STEPS[cur].t}  ·  chain of ${chain.length}`:'Field at rest';
-  g.fillStyle='#9AA6BE'; g.font='11px Georgia';
-  g.fillText(step, pad, y+lh*4+14);
-  g.restore();
 
-  out.toBlob(b=>{
-    const a=document.createElement('a');
-    a.href=URL.createObjectURL(b);
-    a.download=`wholeness-field-v${VERSION}-${Date.now()}.png`;
-    a.click();
-  });
+out.toBlob(blob => {
+  if (!blob) {
+    flash("PNG capture failed.");
+    return;
+  }
+
+  const a = document.createElement('a');
+  const url = URL.createObjectURL(blob);
+
+  a.href = url;
+  a.download = `wholeness-field-v${VERSION}-${Date.now()}.png`;
+  document.body.appendChild(a);
+  a.click();
+
+  setTimeout(() => {
+    URL.revokeObjectURL(url);
+    a.remove();
+  }, 1000);
+
+  flash("PNG saved to your Downloads folder.");
+}, 'image/png');
 }
 
-buildSteps();
+
 init();
-syncRead();
-syncRate();
-updateChainInfo();
 
 </script>
 </body>
