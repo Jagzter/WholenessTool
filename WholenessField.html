@@ -18,7 +18,8 @@
   .panel{position:fixed;background:var(--panel);backdrop-filter:blur(10px);
     border:1px solid var(--line);border-radius:14px;padding:16px 18px;z-index:10}
 
-  #masthead{top:18px;left:18px;max-width:300px}
+  #masthead{top:18px;left:50%;transform:translateX(-50%);max-width:300px;text-align:center;}
+  #masthead{top:18px;left:50%;transform:translateX(-50%);max-width:300px;text-align:center;}
   #masthead .brand{font-size:10px;letter-spacing:0.5px;text-transform:uppercase;color:var(--gold);display:flex;justify-content:space-between;align-items:center}
   #masthead .ver{color:var(--gold-soft);letter-spacing:1px;text-transform:none}
   #masthead h1{font-size:20px;font-weight:normal;margin:4px 0 2px;color:var(--ink)}
@@ -127,9 +128,17 @@ let chain = [];
 let awaitingPlacement = false;
 let started = false;
 
-document.getElementById('verlabel').textContent = 'v'+VERSION;
-document.getElementById('verlabel').title = 'Build '+BUILD;
-document.getElementById('buildlabel').textContent = 'build '+BUILD;
+const verLabel = document.getElementById('verlabel');
+const buildLabel = document.getElementById('buildlabel');
+
+if (verLabel) {
+  verLabel.textContent = 'v' + VERSION;
+  verLabel.title = 'Build ' + BUILD;
+}
+
+if (buildLabel) {
+  buildLabel.textContent = 'build ' + BUILD;
+}
 
 
 function init(){
@@ -235,7 +244,23 @@ function makeEye(scale){
   pupil.position.z = 0.40;
   g.add(sclera); g.add(iris); g.add(pupil);
   g.scale.setScalar(scale);
-  return {group:g, iris};
+ const label = new THREE.Sprite(
+    new THREE.SpriteMaterial({
+        transparent: true,
+        depthTest: false,
+        sizeAttenuation: false
+    })
+);
+
+label.position.set(0,-0.55,0.50);
+label.scale.set(0.08,0.04,1);
+
+g.add(label);
+  return {
+    group:g,
+    iris,
+    label
+};
 }
 
 // ---- add the next I in the chain at a given world point ----
@@ -244,6 +269,29 @@ function addAwareness(worldPt){
   const depth = chain.length;                 // 0-based
   const scale = Math.max(0.55, 1 - depth*0.06); // each recedes slightly
   const eye = makeEye(scale);
+  const canvas = document.createElement("canvas");
+canvas.width = 256;
+canvas.height = 128;
+
+const ctx = canvas.getContext("2d");
+
+ctx.clearRect(0,0,256,128);
+
+ctx.fillStyle = "#FFF6CC";
+ctx.textAlign = "center";
+ctx.textBaseline = "middle";
+
+// Draw the I
+ctx.font = "bold 72px Verdana";
+ctx.fillText("I",108,62);
+
+ctx.font = "bold 42px Verdana";
+ctx.fillText(depth + 1,170,86);
+
+const tex = new THREE.CanvasTexture(canvas);
+
+eye.label.material.map = tex;
+eye.label.material.needsUpdate = true;
   eye.group.position.copy(worldPt);
   scene.add(eye.group);
 
